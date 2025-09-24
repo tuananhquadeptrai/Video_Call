@@ -12,9 +12,15 @@ String token =
 final AzureMeetingService _meetingService = AzureMeetingService();
 final AzureAuthService _authService = AzureAuthService();
 
-// API call to create meeting using Azure Communication Services
+// API call to create meeting using VideoSDK (Azure is not yet configured)
 Future<String> createMeeting() async {
   try {
+    // For now, always use VideoSDK until Azure is properly configured
+    // This ensures all users join the same meeting room
+    return await _createVideoSDKMeeting();
+
+    // TODO: Uncomment when Azure services are properly configured
+    /*
     // Initialize services if not already done
     await _meetingService.initialize();
     await _authService.initialize();
@@ -34,21 +40,28 @@ Future<String> createMeeting() async {
 
     // Fallback to VideoSDK for demo purposes
     return await _createVideoSDKMeeting();
+    */
   } catch (e) {
-    // Fallback to VideoSDK if Azure fails
+    // Fallback to VideoSDK if anything fails
     return await _createVideoSDKMeeting();
   }
 }
 
 // Fallback VideoSDK meeting creation
 Future<String> _createVideoSDKMeeting() async {
+  print('🔄 Creating VideoSDK meeting...');
   final http.Response httpResponse = await http.post(
     Uri.parse("https://api.videosdk.live/v2/rooms"),
     headers: {'Authorization': token},
   );
 
+  print('📡 VideoSDK Response: ${httpResponse.statusCode}');
+  print('📡 VideoSDK Body: ${httpResponse.body}');
+
   //Destructuring the roomId from the response
-  return json.decode(httpResponse.body)['roomId'];
+  final roomId = json.decode(httpResponse.body)['roomId'];
+  print('🆔 Generated Meeting ID: $roomId');
+  return roomId;
 }
 
 // Join meeting using Azure Communication Services

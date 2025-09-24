@@ -1,14 +1,43 @@
 import 'package:flutter/material.dart';
 import 'api_call.dart';
 import 'meeting_screen.dart';
+import 'services/azure_auth_service.dart';
+import 'services/azure_meeting_service.dart';
 
-class JoinScreen extends StatelessWidget {
+class JoinScreen extends StatefulWidget {
+  const JoinScreen({super.key});
+
+  @override
+  State<JoinScreen> createState() => _JoinScreenState();
+}
+
+class _JoinScreenState extends State<JoinScreen> {
   final _meetingIdController = TextEditingController();
   final _nameController = TextEditingController();
+  final AzureAuthService _authService = AzureAuthService();
+  final AzureMeetingService _meetingService = AzureMeetingService();
 
-  JoinScreen({super.key});
+  bool _isLoading = false;
 
-  void onCreateButtonPressed(BuildContext context) async {
+  @override
+  void initState() {
+    super.initState();
+    _initializeServices();
+  }
+
+  Future<void> _initializeServices() async {
+    await _authService.initialize();
+    await _meetingService.initialize();
+  }
+
+  @override
+  void dispose() {
+    _meetingIdController.dispose();
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> onCreateButtonPressed(BuildContext context) async {
     String userName = _nameController.text.trim();
     if (userName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -19,24 +48,52 @@ class JoinScreen extends StatelessWidget {
       );
       return;
     }
-    
-    // call api to create meeting and then navigate to MeetingScreen with meetingId,token
-    await createMeeting().then((meetingId) {
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Create meeting - this will return a VideoSDK roomId for now
+      print('📞 Creating meeting for user: $userName');
+      final meetingId = await createMeeting();
+      print('✅ Meeting created with ID: $meetingId');
+
       if (!context.mounted) return;
+
+      // For VideoSDK meetings, always use the same token
+      print('🚀 Navigating to meeting screen...');
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) =>
-              MeetingScreen(meetingId: meetingId, token: token, userName: userName),
+          builder: (context) => MeetingScreen(
+            meetingId: meetingId,
+            token: token, // Always use VideoSDK token for consistency
+            userName: userName,
+          ),
         ),
       );
-    });
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Lỗi tạo cuộc gọi: ${e.toString()}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
-  void onJoinButtonPressed(BuildContext context) {
+  Future<void> onJoinButtonPressed(BuildContext context) async {
     String meetingId = _meetingIdController.text.trim();
     String userName = _nameController.text.trim();
     var re = RegExp("\\w{4}\\-\\w{4}\\-\\w{4}");
-    
+
     // Check if name is entered
     if (userName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -47,24 +104,54 @@ class JoinScreen extends StatelessWidget {
       );
       return;
     }
-    
+
     // check meeting id is not null or invalid
-    // if meeting id is valid then navigate to MeetingScreen with meetingId,token
-    if (meetingId.isNotEmpty && re.hasMatch(meetingId)) {
-      _meetingIdController.clear();
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) =>
-              MeetingScreen(meetingId: meetingId, token: token, userName: userName),
-        ),
-      );
-    } else {
+    if (meetingId.isEmpty || !re.hasMatch(meetingId)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Vui lòng nhập Meeting ID hợp lệ"),
           backgroundColor: Colors.red,
         ),
       );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // For VideoSDK, we just join with the same meetingId and token
+      print('🔗 Joining meeting ID: $meetingId for user: $userName');
+
+      if (!context.mounted) return;
+
+      _meetingIdController.clear();
+
+      print('🚀 Navigating to join meeting screen...');
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => MeetingScreen(
+            meetingId: meetingId,
+            token: token, // Use consistent VideoSDK token
+            userName: userName,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Lỗi tham gia cuộc gọi: ${e.toString()}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -76,10 +163,7 @@ class JoinScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.blue.shade700,
-              Colors.purple.shade700,
-            ],
+            colors: [Colors.blue.shade700, Colors.purple.shade700],
           ),
         ),
         child: SafeArea(
@@ -126,7 +210,7 @@ class JoinScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 // Main actions
                 Expanded(
                   flex: 3,
@@ -164,7 +248,7 @@ class JoinScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-                      
+
                       // Create meeting button
                       Container(
                         width: double.infinity,
@@ -183,7 +267,9 @@ class JoinScreen extends StatelessWidget {
                           ],
                         ),
                         child: ElevatedButton(
-                          onPressed: () => onCreateButtonPressed(context),
+                          onPressed: _isLoading
+                              ? null
+                              : () => onCreateButtonPressed(context),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
@@ -191,26 +277,40 @@ class JoinScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(28),
                             ),
                           ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.add_circle_outline, color: Colors.white),
-                              SizedBox(width: 12),
-                              Text(
-                                'Tạo cuộc gọi mới',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.add_circle_outline,
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(width: 12),
+                                    Text(
+                                      'Tạo cuộc gọi mới',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 32),
-                      
+
                       // Divider
                       Row(
                         children: [
@@ -238,9 +338,9 @@ class JoinScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      
+
                       const SizedBox(height: 32),
-                      
+
                       // User input section
                       Container(
                         padding: const EdgeInsets.all(24),
@@ -262,7 +362,8 @@ class JoinScreen extends StatelessWidget {
                                 fontSize: 16,
                               ),
                               decoration: InputDecoration(
-                                hintText: 'Nhập Meeting ID (vd: 1234-5678-9012)',
+                                hintText:
+                                    'Nhập Meeting ID (vd: 1234-5678-9012)',
                                 hintStyle: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.6),
                                 ),
@@ -283,13 +384,15 @@ class JoinScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 20),
-                            
+
                             // Join button
                             SizedBox(
                               width: double.infinity,
                               height: 52,
                               child: ElevatedButton(
-                                onPressed: () => onJoinButtonPressed(context),
+                                onPressed: _isLoading
+                                    ? null
+                                    : () => onJoinButtonPressed(context),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.white,
                                   foregroundColor: Colors.blue.shade700,
@@ -298,20 +401,33 @@ class JoinScreen extends StatelessWidget {
                                   ),
                                   elevation: 0,
                                 ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.login),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Tham gia cuộc gọi',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
+                                child: _isLoading
+                                    ? SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.blue.shade700,
+                                              ),
+                                        ),
+                                      )
+                                    : const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.login),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Tham gia cuộc gọi',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                  ],
-                                ),
                               ),
                             ),
                           ],
@@ -320,7 +436,7 @@ class JoinScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 // Footer
                 Expanded(
                   flex: 1,

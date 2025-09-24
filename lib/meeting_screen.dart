@@ -50,29 +50,40 @@ class _MeetingScreenState extends State<MeetingScreen> {
   // listening to meeting events
   void setMeetingEventListener() {
     _room.on(Events.roomJoined, () {
+      print(
+        '🟢 Room joined! Room ID: ${widget.meetingId}, Local participant: ${_room.localParticipant.id}',
+      );
       setState(() {
         participants[_room.localParticipant.id] = _room.localParticipant;
       });
+      print('📊 Total participants after room joined: ${participants.length}');
     });
 
     _room.on(Events.participantJoined, (Participant participant) {
+      print(
+        '🟢 Participant joined: ${participant.id} (${participant.displayName})',
+      );
       setState(() {
         participants[participant.id] = participant;
       });
+      print('📊 Total participants after join: ${participants.length}');
     });
 
     _room.on(Events.participantLeft, (
       String participantId,
       Map<String, dynamic> reason,
     ) {
+      print('🔴 Participant left: $participantId');
       if (participants.containsKey(participantId)) {
         setState(() {
           participants.remove(participantId);
         });
       }
+      print('📊 Total participants after leave: ${participants.length}');
     });
 
     _room.on(Events.roomLeft, () {
+      print('🔴 Room left');
       participants.clear();
       Navigator.popUntil(context, ModalRoute.withName('/'));
     });
@@ -96,7 +107,7 @@ class _MeetingScreenState extends State<MeetingScreen> {
   double _getAspectRatio() {
     int count = participants.length;
     if (count == 1) return 9 / 16; // Portrait for single participant
-    if (count <= 4) return 4 / 3;  // Slightly taller for small groups
+    if (count <= 4) return 4 / 3; // Slightly taller for small groups
     return 1.0; // Square for larger groups
   }
 
@@ -130,10 +141,7 @@ class _MeetingScreenState extends State<MeetingScreen> {
               ),
               Text(
                 '${participants.length} người tham gia',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
             ],
           ),
@@ -171,20 +179,16 @@ class _MeetingScreenState extends State<MeetingScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.grey[900]!,
-                    Colors.black,
-                  ],
+                  colors: [Colors.grey[900]!, Colors.black],
                 ),
               ),
             ),
-            
+
             // Main content
             SafeArea(
               child: Column(
                 children: [
                   const SizedBox(height: 60), // Space for AppBar
-                  
                   // Participants grid
                   Expanded(
                     child: participants.isEmpty
@@ -211,14 +215,16 @@ class _MeetingScreenState extends State<MeetingScreen> {
                         : Padding(
                             padding: const EdgeInsets.all(8.0),
                             child: GridView.builder(
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: _getCrossAxisCount(),
-                                crossAxisSpacing: 8,
-                                mainAxisSpacing: 8,
-                                childAspectRatio: _getAspectRatio(),
-                              ),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: _getCrossAxisCount(),
+                                    crossAxisSpacing: 8,
+                                    mainAxisSpacing: 8,
+                                    childAspectRatio: _getAspectRatio(),
+                                  ),
                               itemBuilder: (context, index) {
-                                final participant = participants.values.elementAt(index);
+                                final participant = participants.values
+                                    .elementAt(index);
                                 return ParticipantTile(
                                   key: Key(participant.id),
                                   participant: participant,
@@ -228,7 +234,7 @@ class _MeetingScreenState extends State<MeetingScreen> {
                             ),
                           ),
                   ),
-                  
+
                   // Controls at bottom
                   MeetingControls(
                     meetingId: widget.meetingId,

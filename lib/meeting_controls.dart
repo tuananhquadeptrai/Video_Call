@@ -70,11 +70,7 @@ class MeetingControls extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.videocam,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  const Icon(Icons.videocam, color: Colors.white, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     'ID: $meetingId',
@@ -103,7 +99,7 @@ class MeetingControls extends StatelessWidget {
                 ],
               ),
             ),
-          
+
           // Control buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -116,7 +112,7 @@ class MeetingControls extends StatelessWidget {
                 activeColor: Colors.white,
                 inactiveColor: Colors.red,
               ),
-              
+
               // Camera toggle
               _buildControlButton(
                 icon: camEnabled ? Icons.videocam : Icons.videocam_off,
@@ -125,7 +121,7 @@ class MeetingControls extends StatelessWidget {
                 activeColor: Colors.white,
                 inactiveColor: Colors.red,
               ),
-              
+
               // Copy meeting ID (if callback provided)
               if (onCopyMeetingId != null)
                 _buildControlButton(
@@ -135,7 +131,7 @@ class MeetingControls extends StatelessWidget {
                   activeColor: Colors.blue,
                   inactiveColor: Colors.blue,
                 ),
-              
+
               // Leave meeting
               _buildControlButton(
                 icon: Icons.call_end,
@@ -172,7 +168,9 @@ class MeetingControls extends StatelessWidget {
         ],
       ),
       child: Material(
-        color: isActive ? activeColor.withValues(alpha: 0.2) : inactiveColor.withValues(alpha: 0.2),
+        color: isActive
+            ? activeColor.withValues(alpha: 0.2)
+            : inactiveColor.withValues(alpha: 0.2),
         shape: const CircleBorder(),
         child: InkWell(
           onTap: onPressed,

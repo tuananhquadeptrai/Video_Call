@@ -18,7 +18,7 @@
         android:required="true" />
 
     <application
-        android:label="video_call_app"
+        android:label="Azure Video Call"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
